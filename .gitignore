@@ -1,0 +1,25 @@
+# Backend
+backend/__pycache__/
+backend/*.pyc
+backend/venv/
+backend/expenses.db
+backend/.env
+*.pkl
+
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
