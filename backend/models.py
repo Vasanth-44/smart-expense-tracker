@@ -11,6 +11,7 @@ class User(Base):
     
     expenses = relationship("Expense", back_populates="owner", cascade="all, delete-orphan")
     budgets = relationship("Budget", back_populates="owner", cascade="all, delete-orphan")
+    incomes = relationship("Income", back_populates="owner", cascade="all, delete-orphan")
 
 class Expense(Base):
     __tablename__ = "expenses"
@@ -33,3 +34,16 @@ class Budget(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     owner = relationship("User", back_populates="budgets")
+
+
+class Income(Base):
+    __tablename__ = "incomes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    amount = Column(Float, nullable=False)
+    category = Column(String, nullable=False)
+    date = Column(Date, nullable=False)
+    note = Column(String)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    owner = relationship("User", back_populates="incomes")

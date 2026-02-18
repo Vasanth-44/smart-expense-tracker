@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Edit2, Trash2, Calendar, Tag, Upload } from 'lucide-react';
 import { expenseAPI } from '../services/api';
+import GlassCard from './ui/GlassCard';
+import Button from './ui/Button';
+import CSVImport from './CSVImport';
+import toast from 'react-hot-toast';
 
 export default function ExpenseList({ refresh, onEdit }) {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     loadExpenses();
@@ -15,6 +22,7 @@ export default function ExpenseList({ refresh, onEdit }) {
       setExpenses(res.data);
     } catch (error) {
       console.error('Error loading expenses:', error);
+      toast.error('Failed to load expenses');
     } finally {
       setLoading(false);
     }
@@ -24,83 +32,122 @@ export default function ExpenseList({ refresh, onEdit }) {
     if (window.confirm('Are you sure you want to delete this expense?')) {
       try {
         await expenseAPI.delete(id);
+        toast.success('Expense deleted successfully!');
         loadExpenses();
       } catch (error) {
         console.error('Error deleting expense:', error);
+        toast.error('Failed to delete expense');
       }
     }
   };
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="text-center text-gray-500">Loading expenses...</div>
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-24 bg-white/5 rounded-2xl animate-pulse" />
+        ))}
       </div>
     );
   }
 
   if (expenses.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-12 text-center">
-        <div className="text-gray-400 text-lg">No expenses yet</div>
-        <p className="text-gray-500 text-sm mt-2">Add your first expense to get started</p>
-      </div>
+      <GlassCard className="text-center py-12">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <div className="text-6xl mb-4">📝</div>
+          <h3 className="text-xl font-semibold text-white mb-2">No expenses yet</h3>
+          <p className="text-gray-400">Add your first expense to get started</p>
+        </motion.div>
+      </GlassCard>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-800">Recent Expenses</h2>
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Note</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {expenses.map((expense) => (
-              <tr key={expense.id} className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {new Date(expense.date).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                    {expense.category}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {expense.note || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
-                  ₹{expense.amount.toFixed(2)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                  <button
-                    onClick={() => onEdit(expense)}
-                    className="text-blue-600 hover:text-blue-800 mr-3 font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(expense.id)}
-                    className="text-red-600 hover:text-red-800 font-medium"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="space-y-4">
+      <GlassCard className="mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
+            <h2 className="text-xl font-semibold text-white">Recent Expenses</h2>
+            <span className="ml-2 text-sm text-gray-400">{expenses.length} total</span>
+          </div>
+          <Button
+            onClick={() => setShowImport(true)}
+            variant="secondary"
+            size="sm"
+            icon={Upload}
+          >
+            Import CSV
+          </Button>
+        </div>
+      </GlassCard>
+
+      <AnimatePresence>
+        {expenses.map((expense, index) => (
+          <motion.div
+            key={expense.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, x: -100 }}
+            transition={{ delay: index * 0.05 }}
+          >
+            <GlassCard className="hover:border-indigo-500/30 transition-all">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-3 py-1 text-xs font-medium rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      {expense.category}
+                    </span>
+                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <Calendar size={14} />
+                      {new Date(expense.date).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <p className="text-gray-300 text-sm truncate">
+                    {expense.note || 'No description'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-white">
+                      ₹{expense.amount.toFixed(2)}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => onEdit(expense)}
+                      variant="ghost"
+                      size="sm"
+                      icon={Edit2}
+                      className="text-blue-400 hover:text-blue-300"
+                    />
+                    <Button
+                      onClick={() => handleDelete(expense.id)}
+                      variant="ghost"
+                      size="sm"
+                      icon={Trash2}
+                      className="text-red-400 hover:text-red-300"
+                    />
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      {/* CSV Import Modal */}
+      <CSVImport
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        onSuccess={loadExpenses}
+      />
     </div>
   );
 }

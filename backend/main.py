@@ -1,14 +1,20 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from typing import Optional
 
 from database import engine, get_db, Base
-from models import User, Expense, Budget
+from models import User, Expense, Budget, Income
 from services import ExpenseService, BudgetService, AnalyticsService
+from income_service import IncomeService
 from ai_categorizer import AICategorizer
+from ai_assistant import AISpendingAssistant
+from ml_predictions import MLPredictionService
+from csv_import import CSVImportService
+from sms_parser import SMSTransactionParser
 from auth import (
     get_password_hash, 
     authenticate_user, 
@@ -63,6 +69,26 @@ class BudgetCreate(BaseModel):
 
 class CategoryPrediction(BaseModel):
     note: str
+
+class ChatMessage(BaseModel):
+    message: str
+
+class SMSWebhook(BaseModel):
+    sender: str
+    message: str
+    timestamp: Optional[str] = None
+
+class IncomeCreate(BaseModel):
+    amount: float
+    category: str
+    date: date
+    note: Optional[str] = None
+
+class IncomeUpdate(BaseModel):
+    amount: float
+    category: str
+    date: date
+    note: Optional[str] = None
 
 # Auth Routes
 @app.post("/auth/signup", response_model=Token)
@@ -213,3 +239,297 @@ def get_summary(current_user: User = Depends(get_current_user), db: Session = De
 @app.get("/analytics/insights")
 def get_insights(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return {"insights": AnalyticsService.get_insights(db, current_user.id)}
+
+# Income Routes
+@app.get("/incomes")
+def get_incomes(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    incomes = IncomeService.get_all_incomes(db, current_user.id)
+    return [
+        {
+            "id": i.id,
+            "amount": i.amount,
+            "category": i.category,
+            "date": i.date.isoformat(),
+            "note": i.note
+        }
+        for i in incomes
+    ]
+
+@app.post("/incomes")
+def create_income(
+    income: IncomeCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    new_income = IncomeService.create_income(
+        db, income.amount, income.category, income.date, income.note, current_user.id
+    )
+    return {
+        "id": new_income.id,
+        "amount": new_income.amount,
+        "category": new_income.category,
+        "date": new_income.date.isoformat(),
+        "note": new_income.note
+    }
+
+@app.put("/incomes/{income_id}")
+def update_income(
+    income_id: int,
+    income: IncomeUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    updated = IncomeService.update_income(
+        db, income_id, income.amount, income.category, income.date, income.note, current_user.id
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Income not found")
+    return {
+        "id": updated.id,
+        "amount": updated.amount,
+        "category": updated.category,
+        "date": updated.date.isoformat(),
+        "note": updated.note
+    }
+
+@app.delete("/incomes/{income_id}")
+def delete_income(
+    income_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    success = IncomeService.delete_income(db, income_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Income not found")
+    return {"message": "Income deleted"}
+
+@app.get("/income-categories")
+def get_income_categories():
+    return {"categories": IncomeService.get_categories()}
+
+@app.get("/analytics/financial-summary")
+def get_financial_summary(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get complete financial summary with income and expenses"""
+    now = datetime.now()
+    current_month_start = now.replace(day=1)
+    
+    # Get current month income and expenses
+    total_income = IncomeService.get_total_income(db, current_user.id, current_month_start)
+    total_expenses_result = db.query(func.sum(Expense.amount)).filter(
+        Expense.user_id == current_user.id,
+        Expense.date >= current_month_start
+    ).scalar()
+    total_expenses = float(total_expenses_result) if total_expenses_result else 0
+    
+    net_balance = total_income - total_expenses
+    savings_rate = (net_balance / total_income * 100) if total_income > 0 else 0
+    
+    # Get income breakdown
+    income_breakdown = IncomeService.get_income_by_category(db, current_user.id, current_month_start)
+    
+    return {
+        "total_income": total_income,
+        "total_expenses": total_expenses,
+        "net_balance": net_balance,
+        "savings_rate": round(savings_rate, 2),
+        "month": now.strftime('%B %Y'),
+        "income_breakdown": income_breakdown
+    }
+
+# AI Chat Routes
+@app.post("/ai/chat")
+def chat_with_ai(
+    chat: ChatMessage,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """AI-powered spending assistant endpoint."""
+    response = AISpendingAssistant.generate_response(
+        user_id=current_user.id,
+        query=chat.message,
+        db=db
+    )
+    return response
+
+@app.get("/ai/suggestions")
+def get_chat_suggestions():
+    """Get quick suggestion prompts for chat UI."""
+    return {"suggestions": AISpendingAssistant.get_quick_suggestions()}
+
+# ML Prediction Routes
+@app.get("/ml/predict-next-month")
+def predict_next_month(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Predict next month's spending using ML."""
+    prediction = MLPredictionService.predict_next_month(current_user.id, db)
+    return prediction
+
+@app.get("/ml/anomalies")
+def detect_anomalies(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Detect spending anomalies and unusual patterns."""
+    anomalies = MLPredictionService.detect_anomalies(current_user.id, db)
+    return anomalies
+
+@app.get("/ml/insights")
+def get_ml_insights(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive ML-based insights."""
+    insights = MLPredictionService.get_spending_insights(current_user.id, db)
+    return insights
+
+# CSV Import Routes
+@app.post("/expenses/import-csv")
+async def import_csv(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Import expenses from CSV file."""
+    # Validate file type
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+    
+    # Read file content
+    content = await file.read()
+    try:
+        file_content = content.decode('utf-8')
+    except UnicodeDecodeError:
+        # Try with different encoding
+        try:
+            file_content = content.decode('latin-1')
+        except:
+            raise HTTPException(status_code=400, detail="Unable to decode file. Please ensure it's a valid CSV")
+    
+    # Parse CSV
+    parsed_rows, errors = CSVImportService.parse_csv(file_content)
+    
+    if not parsed_rows:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"No valid rows found. Errors: {', '.join(errors[:3])}"
+        )
+    
+    # Import expenses
+    result = CSVImportService.import_expenses(current_user.id, parsed_rows, db)
+    
+    return result
+
+@app.post("/expenses/validate-csv")
+async def validate_csv(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Validate CSV format and return preview."""
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+    
+    content = await file.read()
+    try:
+        file_content = content.decode('utf-8')
+    except UnicodeDecodeError:
+        try:
+            file_content = content.decode('latin-1')
+        except:
+            raise HTTPException(status_code=400, detail="Unable to decode file")
+    
+    validation = CSVImportService.validate_csv(file_content)
+    return validation
+
+
+# SMS Webhook Routes
+@app.post("/sms/webhook")
+async def sms_webhook(
+    sms: SMSWebhook,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Webhook endpoint to receive SMS and auto-create expenses.
+    Can be called from SMS forwarding apps or services.
+    """
+    # Parse SMS
+    parsed = SMSTransactionParser.parse_sms(sms.message, sms.sender)
+    
+    if not parsed:
+        raise HTTPException(
+            status_code=400,
+            detail="SMS does not contain a valid transaction"
+        )
+    
+    # Auto-categorize using ML
+    category = AICategorizer.predict_category(parsed['note'])
+    
+    # Check for duplicates (same amount, date, and merchant)
+    existing = db.query(Expense).filter(
+        Expense.user_id == current_user.id,
+        Expense.date == parsed['date'],
+        Expense.amount == parsed['amount'],
+        Expense.note.contains(parsed['merchant'])
+    ).first()
+    
+    if existing:
+        return {
+            "status": "duplicate",
+            "message": "Transaction already exists",
+            "expense_id": existing.id
+        }
+    
+    # Create expense
+    new_expense = Expense(
+        user_id=current_user.id,
+        date=parsed['date'],
+        amount=parsed['amount'],
+        category=category,
+        note=parsed['note']
+    )
+    db.add(new_expense)
+    db.commit()
+    db.refresh(new_expense)
+    
+    return {
+        "status": "success",
+        "message": "Expense created from SMS",
+        "expense": {
+            "id": new_expense.id,
+            "amount": new_expense.amount,
+            "category": new_expense.category,
+            "date": new_expense.date.isoformat(),
+            "note": new_expense.note,
+            "merchant": parsed['merchant']
+        },
+        "parsed_data": parsed
+    }
+
+@app.post("/sms/test-parse")
+def test_sms_parse(sms: SMSWebhook):
+    """
+    Test endpoint to check if SMS can be parsed.
+    Does not create expense, just returns parsed data.
+    """
+    parsed = SMSTransactionParser.parse_sms(sms.message, sms.sender)
+    
+    if not parsed:
+        return {
+            "valid": False,
+            "message": "SMS does not contain a valid transaction"
+        }
+    
+    # Get suggested category
+    category = AICategorizer.predict_category(parsed['note'])
+    parsed['suggested_category'] = category
+    
+    return {
+        "valid": True,
+        "message": "SMS parsed successfully",
+        "parsed_data": parsed
+    }
