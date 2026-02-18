@@ -1,16 +1,65 @@
-# 💰 Smart Expense Tracker
+# 💰 Smart Expense Tracker - AI-Powered Personal Finance Intelligence Platform
 
-A full-stack expense tracking application with AI-powered features, machine learning predictions, and a premium modern UI.
+A next-generation full-stack financial management application with AI-powered insights, predictive analytics, machine learning, and comprehensive wealth tracking.
 
-## 🌟 Features
+## 🌟 Core Features
 
-### Core Functionality
+### Financial Management
 - **Expense Management**: Add, edit, delete, and categorize expenses
 - **Income Tracking**: Track multiple income sources with categories
 - **Budget Management**: Set and monitor monthly budgets with visual indicators
 - **Financial Dashboard**: Real-time overview of spending patterns and trends
 
-### Advanced Features
+### 🚀 NEW: Advanced AI Features
+
+#### 1. Expense Forecasting
+- **Predictive Analytics**: Forecast next month's spending using time series analysis
+- **Category Predictions**: Get category-wise spending forecasts
+- **Confidence Intervals**: View prediction ranges (lower/upper bounds)
+- **Trend Analysis**: Identify spending trends (increasing/decreasing/stable)
+
+#### 2. Net Worth Dashboard
+- **Asset Tracking**: Monitor cash, investments, property, vehicles
+- **Liability Management**: Track loans, credit cards, mortgages
+- **Net Worth Calculation**: Real-time assets minus liabilities
+- **Monthly Growth**: Track net worth changes over time
+- **Cash Flow Summary**: Monthly income vs expenses analysis
+- **Savings Rate**: Automatic savings percentage calculation
+
+#### 3. Financial Health Score (0-100)
+- **Comprehensive Scoring**: Based on 5 key financial metrics
+- **Component Breakdown**: 
+  - Savings Rate (30%)
+  - Budget Adherence (25%)
+  - Expense Stability (20%)
+  - Debt Management (15%)
+  - Spending Control (10%)
+- **Color-Coded Rating**: Excellent/Good/Fair/Poor/Critical
+- **Personalized Recommendations**: AI-generated improvement suggestions
+
+#### 4. Financial Goal Planner
+- **Goal Creation**: Set targets with deadlines
+- **Progress Tracking**: Visual progress bars and percentages
+- **Required Savings Calculator**: Know how much to save monthly
+- **On-Track Status**: Automatic tracking vs actual savings
+- **Completion Prediction**: Estimated achievement date
+- **Goal Categories**: Emergency Fund, Vacation, House, Car, Education, Retirement
+
+#### 5. Behavioral Spending Analysis
+- **Month-over-Month Comparison**: Track category spending changes
+- **Lifestyle Inflation Detection**: Identify increasing spending patterns
+- **Budget Alerts**: Notifications for budget overruns
+- **Smart Insights**: AI-generated spending pattern messages
+- **Trend Identification**: Spot positive and negative changes
+
+#### 6. Anomaly Detection
+- **Unusual Transactions**: Statistical detection of outlier expenses
+- **Category Anomalies**: Identify unusual category spending
+- **Spending Spikes**: Detect sudden increases in daily spending
+- **Severity Levels**: High/Medium risk classification
+- **Detailed Explanations**: Understand why transactions are flagged
+
+### Original Advanced Features
 - **AI Chatbot Assistant**: Get financial advice and insights using AI
 - **ML Predictions**: Machine learning model predicts expense categories automatically
 - **SMS Auto-Import**: Parse and import expenses from SMS notifications
@@ -24,6 +73,7 @@ A full-stack expense tracking application with AI-powered features, machine lear
 - **Dark Theme**: Eye-friendly dark mode interface
 - **Smooth Animations**: Framer Motion and React Spring animations
 - **Real-time Updates**: Live data updates without page refresh
+- **Professional Fintech Design**: Stripe/Revolut-inspired interface
 
 ## 🛠️ Tech Stack
 
@@ -35,6 +85,8 @@ A full-stack expense tracking application with AI-powered features, machine lear
 - **Axios** - HTTP client
 - **Lucide React** - Icons
 - **React Hot Toast** - Notifications
+- **React Circular Progressbar** - Health score visualization
+- **React CountUp** - Animated counters
 
 ### Backend
 - **FastAPI** - Python web framework
@@ -42,7 +94,15 @@ A full-stack expense tracking application with AI-powered features, machine lear
 - **SQLite** - Database
 - **JWT** - Authentication
 - **Scikit-learn** - Machine learning
+- **NumPy** - Statistical analysis
 - **Uvicorn** - ASGI server
+- **Python-dateutil** - Date handling
+
+### AI & Analytics
+- **Linear Regression** - Expense forecasting
+- **Z-Score Analysis** - Anomaly detection
+- **Time Series Analysis** - Trend prediction
+- **Statistical Modeling** - Health score calculation
 
 ## 📦 Installation
 
@@ -90,26 +150,40 @@ Frontend will run on `http://localhost:3000`
 
 ## 🚀 Quick Start
 
+See [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) for detailed setup instructions.
+
+### Quick Setup
+
 1. **Clone the repository**
 ```bash
 git clone https://github.com/Vasanth-44/smart-expense-tracker.git
 cd smart-expense-tracker
 ```
 
-2. **Set up the backend** (see Backend Setup above)
-
-3. **Set up the frontend** (see Frontend Setup above)
-
-4. **Create initial ML model** (optional)
+2. **Backend Setup**
 ```bash
 cd backend
-python create_simple_model.py
+pip install -r requirements.txt
+python -m uvicorn main:app --reload
 ```
 
-5. **Seed sample data** (optional)
+3. **Frontend Setup**
 ```bash
-python seed_data.py
+cd frontend
+npm install
+npm start
 ```
+
+4. **Access the Application**
+- Frontend: http://localhost:3000
+- Backend API: http://127.0.0.1:8000
+- API Docs: http://127.0.0.1:8000/docs
+
+## 📚 Documentation
+
+- **[AI_FINANCE_PLATFORM_UPGRADE.md](AI_FINANCE_PLATFORM_UPGRADE.md)** - Complete feature documentation
+- **[QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)** - Setup and usage guide
+- **[VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md)** - Deployment instructions
 
 ## 📱 Features in Detail
 
@@ -157,22 +231,27 @@ python seed_data.py
 - `POST /auth/login` - User login
 - `GET /auth/me` - Get current user
 
-### Expenses
-- `GET /expenses` - Get all expenses
-- `POST /expenses` - Create expense
-- `PUT /expenses/{id}` - Update expense
-- `DELETE /expenses/{id}` - Delete expense
+### Expenses & Income
+- `GET/POST/PUT/DELETE /expenses` - Expense CRUD
+- `GET/POST/PUT/DELETE /incomes` - Income CRUD
 
-### Income
-- `GET /income` - Get all income
-- `POST /income` - Create income entry
-- `PUT /income/{id}` - Update income
-- `DELETE /income/{id}` - Delete income
+### Budget & Analytics
+- `GET/POST/PUT/DELETE /budgets` - Budget management
+- `GET /analytics/summary` - Financial summary
+- `GET /analytics/insights` - Spending insights
 
-### Budget
-- `GET /budgets` - Get all budgets
-- `POST /budgets` - Create budget
-- `PUT /budgets/{id}` - Update budget
+### 🆕 Advanced Features
+- `GET /forecast/next-month` - Expense forecast
+- `GET /forecast/by-category` - Category forecasts
+- `GET /forecast/trend` - Spending trend
+- `GET /health/score` - Financial health score (0-100)
+- `GET /networth/dashboard` - Net worth overview
+- `GET/POST/PUT/DELETE /assets` - Asset management
+- `GET/POST/PUT/DELETE /liabilities` - Liability management
+- `GET/POST/PUT/DELETE /goals` - Financial goals
+- `GET /goals/{id}/progress` - Goal progress
+- `GET /anomalies/all` - Anomaly detection
+- `GET /insights/behavioral` - Behavioral insights
 
 ### ML & AI
 - `POST /predict-category` - Predict expense category
@@ -181,6 +260,8 @@ python seed_data.py
 ### Import
 - `POST /import/sms` - Import from SMS
 - `POST /import/csv` - Import from CSV
+
+Full API documentation available at: http://127.0.0.1:8000/docs
 
 ## 🔐 Environment Variables
 
