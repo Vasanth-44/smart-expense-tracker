@@ -19,6 +19,10 @@ import NetWorthDashboard from './components/NetWorthDashboard';
 import FinancialHealthScore from './components/FinancialHealthScore';
 import GoalsPlanner from './components/GoalsPlanner';
 import InsightsDashboard from './components/InsightsDashboard';
+import GroupDashboard from './components/GroupDashboard';
+import PricingPage from './components/PricingPage';
+import AdminDashboard from './components/AdminDashboard';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -96,140 +100,154 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
-      {/* Animated Particle Background */}
-      <AnimatedBackground />
-      {/* Animated background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{ duration: 20, repeat: Infinity }}
-          className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.5, 0.3, 0.5],
-          }}
-          transition={{ duration: 15, repeat: Infinity }}
-          className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"
-        />
-      </div>
-
-      {/* Sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setActiveTab(tab);
-          if (tab !== 'add') {
-            setEditExpense(null);
-          }
-        }}
-        onLogout={handleLogout}
-        user={user}
-      />
-
-      {/* Main Content */}
-      <div className="ml-64 p-8 relative z-10">
-        <AnimatePresence mode="wait">
+    <SubscriptionProvider>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
+        {/* Animated Particle Background */}
+        <AnimatedBackground />
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            {activeTab === 'dashboard' && <Dashboard key={refreshKey} />}
-            
-            {activeTab === 'add' && (
-              <ExpenseForm
-                onSuccess={handleExpenseSuccess}
-                editExpense={editExpense}
-                onCancel={handleCancelEdit}
-              />
-            )}
-            
-            {activeTab === 'expenses' && (
-              <ExpenseList refresh={refreshKey} onEdit={handleEdit} />
-            )}
-            
-            {activeTab === 'sms' && (
-              <SMSImport onImportSuccess={handleExpenseSuccess} />
-            )}
-            
-            {activeTab === 'add-income' && (
-              <IncomeForm
-                onSuccess={handleExpenseSuccess}
-                editIncome={editIncome}
-                onCancel={handleCancelIncomeEdit}
-              />
-            )}
-            
-            {activeTab === 'income-list' && (
-              <IncomeList refresh={refreshKey} onEdit={handleEditIncome} />
-            )}
-            
-            {activeTab === 'financial-summary' && (
-              <FinancialSummary />
-            )}
-            
-            {activeTab === 'forecast' && (
-              <ForecastDashboard />
-            )}
-            
-            {activeTab === 'networth' && (
-              <NetWorthDashboard />
-            )}
-            
-            {activeTab === 'health-score' && (
-              <FinancialHealthScore />
-            )}
-            
-            {activeTab === 'goals' && (
-              <GoalsPlanner />
-            )}
-            
-            {activeTab === 'insights' && (
-              <InsightsDashboard />
-            )}
-            
-            {activeTab === 'budget' && <BudgetManager />}
-          </motion.div>
-        </AnimatePresence>
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{ duration: 20, repeat: Infinity }}
+            className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{
+              scale: [1.2, 1, 1.2],
+              opacity: [0.5, 0.3, 0.5],
+            }}
+            transition={{ duration: 15, repeat: Infinity }}
+            className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"
+          />
+        </div>
+
+        {/* Sidebar */}
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            if (tab !== 'add') {
+              setEditExpense(null);
+            }
+          }}
+          onLogout={handleLogout}
+          user={user}
+        />
+
+        {/* Main Content */}
+        <div className="ml-64 p-8 relative z-10">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {activeTab === 'dashboard' && <Dashboard key={refreshKey} />}
+              
+              {activeTab === 'add' && (
+                <ExpenseForm
+                  onSuccess={handleExpenseSuccess}
+                  editExpense={editExpense}
+                  onCancel={handleCancelEdit}
+                />
+              )}
+              
+              {activeTab === 'expenses' && (
+                <ExpenseList refresh={refreshKey} onEdit={handleEdit} />
+              )}
+              
+              {activeTab === 'sms' && (
+                <SMSImport onImportSuccess={handleExpenseSuccess} />
+              )}
+              
+              {activeTab === 'add-income' && (
+                <IncomeForm
+                  onSuccess={handleExpenseSuccess}
+                  editIncome={editIncome}
+                  onCancel={handleCancelIncomeEdit}
+                />
+              )}
+              
+              {activeTab === 'income-list' && (
+                <IncomeList refresh={refreshKey} onEdit={handleEditIncome} />
+              )}
+              
+              {activeTab === 'financial-summary' && (
+                <FinancialSummary />
+              )}
+              
+              {activeTab === 'forecast' && (
+                <ForecastDashboard />
+              )}
+              
+              {activeTab === 'networth' && (
+                <NetWorthDashboard />
+              )}
+              
+              {activeTab === 'health-score' && (
+                <FinancialHealthScore />
+              )}
+              
+              {activeTab === 'goals' && (
+                <GoalsPlanner />
+              )}
+              
+              {activeTab === 'insights' && (
+                <InsightsDashboard />
+              )}
+              
+              {activeTab === 'groups' && (
+                <GroupDashboard />
+              )}
+              
+              {activeTab === 'pricing' && (
+                <PricingPage />
+              )}
+              
+              {activeTab === 'admin' && (
+                <AdminDashboard />
+              )}
+              
+              {activeTab === 'budget' && <BudgetManager />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* AI Chat Assistant */}
+        <AIChat />
+
+        {/* Toast Notifications */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: 'rgba(15, 23, 42, 0.9)',
+              color: '#fff',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              backdropFilter: 'blur(10px)',
+            },
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
       </div>
-
-      {/* AI Chat Assistant */}
-      <AIChat />
-
-      {/* Toast Notifications */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: 'rgba(15, 23, 42, 0.9)',
-            color: '#fff',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '12px',
-            backdropFilter: 'blur(10px)',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
-    </div>
+    </SubscriptionProvider>
   );
 }
 

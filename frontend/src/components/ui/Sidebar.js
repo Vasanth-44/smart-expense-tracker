@@ -1,8 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, PlusCircle, Receipt, Wallet, LogOut, Smartphone, TrendingUp, DollarSign, PieChart, TrendingDown, Target, Shield, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, Receipt, Wallet, LogOut, Smartphone, TrendingUp, DollarSign, PieChart, TrendingDown, Target, Shield, AlertCircle, Users, Crown, Settings } from 'lucide-react';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 export default function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
+  const { subscription, isPro } = useSubscription();
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'financial-summary', label: 'Financial Summary', icon: PieChart },
@@ -11,6 +14,7 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
     { id: 'health-score', label: 'Health Score', icon: Shield },
     { id: 'goals', label: 'Goals', icon: Target },
     { id: 'insights', label: 'Insights', icon: AlertCircle },
+    { id: 'groups', label: 'Groups', icon: Users, pro: true },
     { id: 'add', label: 'Add Expense', icon: PlusCircle },
     { id: 'expenses', label: 'Expenses', icon: Receipt },
     { id: 'add-income', label: 'Add Income', icon: TrendingUp },
@@ -19,11 +23,16 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
     { id: 'budget', label: 'Budget', icon: Wallet },
   ];
 
+  // Add admin menu item if user is admin
+  if (user?.is_admin) {
+    menuItems.push({ id: 'admin', label: 'Admin', icon: Settings, admin: true });
+  }
+
   return (
     <motion.div
       initial={{ x: -100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      className="fixed left-0 top-0 h-full w-64 bg-slate-900/50 backdrop-blur-xl border-r border-white/10 p-6 flex flex-col"
+      className="fixed left-0 top-0 h-full w-64 bg-slate-900/50 backdrop-blur-xl border-r border-white/10 p-6 flex flex-col overflow-y-auto"
     >
       {/* Logo */}
       <div className="mb-8">
@@ -37,32 +46,73 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
       <div className="mb-6 p-3 bg-white/5 rounded-xl border border-white/10">
         <p className="text-sm text-gray-400">Logged in as</p>
         <p className="text-white font-medium truncate">{user?.email}</p>
+        {subscription && (
+          <div className="mt-2">
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+              isPro()
+                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+            }`}>
+              {isPro() && <Crown size={12} />}
+              {subscription.plan_type?.toUpperCase()}
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Upgrade Button */}
+      {!isPro() && (
+        <motion.button
+          onClick={() => setActiveTab('pricing')}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="mb-4 w-full p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl text-white font-medium flex items-center justify-center gap-2 hover:from-indigo-600 hover:to-purple-700 transition-all"
+        >
+          <Crown size={20} />
+          Upgrade to PRO
+        </motion.button>
+      )}
 
       {/* Menu Items */}
       <nav className="flex-1 space-y-2">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
+          const isLocked = item.pro && !isPro();
           
           return (
             <motion.button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                if (isLocked) {
+                  setActiveTab('pricing');
+                } else {
+                  setActiveTab(item.id);
+                }
+              }}
               whileHover={{ x: 5 }}
               whileTap={{ scale: 0.98 }}
               className={`
                 w-full flex items-center gap-3 px-4 py-3 rounded-xl
-                transition-all duration-200
+                transition-all duration-200 relative
                 ${isActive 
                   ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-white border border-indigo-500/30' 
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }
+                ${item.admin ? 'border border-orange-500/30' : ''}
               `}
             >
               <Icon size={20} />
               <span className="font-medium">{item.label}</span>
-              {isActive && (
+              {isLocked && (
+                <Crown size={14} className="ml-auto text-purple-400" />
+              )}
+              {item.admin && (
+                <span className="ml-auto text-xs px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full">
+                  ADMIN
+                </span>
+              )}
+              {isActive && !item.admin && (
                 <motion.div
                   layoutId="activeTab"
                   className="ml-auto w-2 h-2 bg-indigo-400 rounded-full"

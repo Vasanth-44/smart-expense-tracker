@@ -105,6 +105,10 @@ def signup(user_data: UserSignup, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
+    # Create FREE subscription for new user
+    from subscription_service import SubscriptionService
+    SubscriptionService.create_subscription(db, new_user.id)
+    
     # Create token
     access_token = create_access_token(data={"sub": new_user.email})
     
@@ -881,3 +885,379 @@ def get_goal_progress(
     if not progress:
         raise HTTPException(status_code=404, detail="Goal not found")
     return progress
+
+
+# ==================== SAAS FEATURES ====================
+
+from group_service import GroupService
+from split_service import SplitService, SplitType
+from subscription_service import SubscriptionService, get_subscription_or_create
+from admin_service import AdminService
+from payment_service import PaymentService
+from models import GroupRole, InviteStatus
+
+# Pydantic models for SaaS features
+class GroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class GroupInviteCreate(BaseModel):
+    email: str
+
+class InviteAccept(BaseModel):
+    token: str
+
+class SplitCreate(BaseModel):
+    split_type: str  # equal, percentage, custom
+    splits: list  # [{"user_id": 1, "amount": 100} or {"user_id": 1, "percentage": 50}]
+
+class MemberRoleUpdate(BaseModel):
+    role: str  # owner, admin, member
+
+class SubscriptionUpgrade(BaseModel):
+    plan_type: str = "pro"
+
+class WebhookPayload(BaseModel):
+    type: str
+    data: dict
+
+
+# ==================== GROUP ENDPOINTS ====================
+
+@app.post("/groups/create")
+def create_group(
+    group: GroupCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new finance group (PRO feature)"""
+    # Check PRO access
+    SubscriptionService.require_pro(db, current_user.id, "group finance")
+    
+    new_group = GroupService.create_group(db, group.name, group.description, current_user.id)
+    return {
+        "id": new_group.id,
+        "name": new_group.name,
+        "description": new_group.description,
+        "created_at": new_group.created_at.isoformat()
+    }
+
+@app.get("/groups/list")
+def list_groups(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all groups user is member of"""
+    groups = GroupService.get_user_groups(db, current_user.id)
+    return {
+        "groups": [
+            {
+                "id": g.id,
+                "name": g.name,
+                "description": g.description,
+                "created_at": g.created_at.isoformat()
+            }
+            for g in groups
+        ]
+    }
+
+@app.get("/groups/{group_id}")
+def get_group(
+    group_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get group details"""
+    group = GroupService.get_group_details(db, group_id, current_user.id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found or access denied")
+    return group
+
+@app.post("/groups/{group_id}/invite")
+def invite_to_group(
+    group_id: int,
+    invite: GroupInviteCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Invite member to group"""
+    try:
+        invitation = GroupService.invite_member(db, group_id, invite.email, current_user.id)
+        return {
+            "id": invitation.id,
+            "email": invitation.email,
+            "token": invitation.token,
+            "expires_at": invitation.expires_at.isoformat(),
+            "invite_link": f"/groups/join?token={invitation.token}"
+        }
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+@app.post("/groups/join")
+def join_group(
+    invite: InviteAccept,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Accept group invitation"""
+    try:
+        member = GroupService.accept_invite(db, invite.token, current_user.id)
+        return {
+            "message": "Successfully joined group",
+            "group_id": member.group_id,
+            "role": member.role.value
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/groups/{group_id}/expenses")
+def get_group_expenses(
+    group_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all expenses for a group"""
+    try:
+        expenses = GroupService.get_group_expenses(db, group_id, current_user.id)
+        return {"expenses": expenses}
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+@app.delete("/groups/{group_id}")
+def delete_group(
+    group_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete group (owner only)"""
+    try:
+        success = GroupService.delete_group(db, group_id, current_user.id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Group not found")
+        return {"message": "Group deleted successfully"}
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+@app.delete("/groups/{group_id}/members/{member_id}")
+def remove_member(
+    group_id: int,
+    member_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Remove member from group"""
+    try:
+        success = GroupService.remove_member(db, group_id, member_id, current_user.id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Member not found")
+        return {"message": "Member removed successfully"}
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+@app.put("/groups/{group_id}/members/{member_id}/role")
+def update_member_role(
+    group_id: int,
+    member_id: int,
+    role_update: MemberRoleUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update member role"""
+    try:
+        role = GroupRole(role_update.role)
+        member = GroupService.update_member_role(db, group_id, member_id, role, current_user.id)
+        return {
+            "message": "Role updated successfully",
+            "member_id": member.id,
+            "new_role": member.role.value
+        }
+    except (PermissionError, ValueError) as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+
+# ==================== SPLIT ENDPOINTS ====================
+
+@app.post("/expenses/{expense_id}/split")
+def split_expense(
+    expense_id: int,
+    split_data: SplitCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create expense split"""
+    try:
+        split_type = SplitType(split_data.split_type)
+        splits = SplitService.create_split(
+            db, expense_id, split_type, split_data.splits, current_user.id
+        )
+        return {
+            "message": "Expense split created",
+            "splits": [
+                {
+                    "id": s.id,
+                    "user_id": s.user_id,
+                    "amount_owed": s.amount_owed,
+                    "is_settled": s.is_settled
+                }
+                for s in splits
+            ]
+        }
+    except (ValueError, PermissionError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/splits/{split_id}/settle")
+def settle_split(
+    split_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Mark split as settled"""
+    try:
+        split = SplitService.settle_split(db, split_id, current_user.id)
+        return {
+            "message": "Split settled successfully",
+            "split_id": split.id,
+            "settled_at": split.settled_at.isoformat()
+        }
+    except (ValueError, PermissionError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/groups/{group_id}/balances")
+def get_group_balances(
+    group_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all balances in a group"""
+    try:
+        balances = SplitService.get_group_balances(db, group_id, current_user.id)
+        return {"balances": balances}
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+@app.get("/splits/my-splits")
+def get_my_splits(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all splits for current user"""
+    splits = SplitService.get_user_splits(db, current_user.id)
+    return splits
+
+
+# ==================== SUBSCRIPTION ENDPOINTS ====================
+
+@app.post("/subscribe")
+def subscribe_to_pro(
+    upgrade: SubscriptionUpgrade,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Upgrade to PRO plan"""
+    # Create payment checkout session
+    checkout = PaymentService.create_checkout_session(db, current_user.id, upgrade.plan_type)
+    return checkout
+
+@app.get("/subscription/status")
+def get_subscription_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get subscription status"""
+    status = SubscriptionService.get_subscription_status(db, current_user.id)
+    return status
+
+@app.post("/subscription/cancel")
+def cancel_subscription(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Cancel PRO subscription"""
+    try:
+        result = PaymentService.cancel_subscription_external(db, current_user.id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/subscription/payment-methods")
+def get_payment_methods():
+    """Get available payment methods"""
+    return PaymentService.get_payment_methods()
+
+@app.post("/webhook/payment")
+async def payment_webhook(
+    payload: WebhookPayload,
+    signature: str = "",
+    db: Session = Depends(get_db)
+):
+    """Handle payment provider webhooks"""
+    result = PaymentService.handle_webhook(db, payload.dict(), signature)
+    return result
+
+
+# ==================== ADMIN ENDPOINTS ====================
+
+def require_admin(current_user: User = Depends(get_current_user)):
+    """Middleware to require admin access"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user
+
+@app.get("/admin/users")
+def get_all_users(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Get all users (admin only)"""
+    users = AdminService.get_all_users(db, skip, limit)
+    return {"users": users, "total": len(users)}
+
+@app.get("/admin/subscriptions")
+def get_subscription_stats(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Get subscription statistics (admin only)"""
+    stats = AdminService.get_subscription_stats(db)
+    return stats
+
+@app.get("/admin/revenue")
+def get_revenue_stats(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Get revenue statistics (admin only)"""
+    stats = AdminService.get_revenue_stats(db)
+    return stats
+
+@app.get("/admin/analytics")
+def get_system_analytics(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive system analytics (admin only)"""
+    analytics = AdminService.get_system_analytics(db)
+    return analytics
+
+@app.get("/admin/stats")
+def get_admin_stats(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Get quick admin dashboard stats"""
+    subscription_stats = AdminService.get_subscription_stats(db)
+    revenue_stats = AdminService.get_revenue_stats(db)
+    feature_usage = AdminService.get_feature_usage(db)
+    
+    return {
+        "total_users": subscription_stats["total_users"],
+        "pro_users": subscription_stats["pro_users"],
+        "monthly_revenue": revenue_stats["monthly_revenue"],
+        "total_expenses": feature_usage["total_expenses"],
+        "total_groups": feature_usage["total_groups"]
+    }
