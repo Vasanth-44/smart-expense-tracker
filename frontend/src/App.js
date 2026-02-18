@@ -14,6 +14,11 @@ import SMSImport from './components/SMSImport';
 import IncomeForm from './components/IncomeForm';
 import IncomeList from './components/IncomeList';
 import FinancialSummary from './components/FinancialSummary';
+import ForecastDashboard from './components/ForecastDashboard';
+import NetWorthDashboard from './components/NetWorthDashboard';
+import FinancialHealthScore from './components/FinancialHealthScore';
+import GoalsPlanner from './components/GoalsPlanner';
+import InsightsDashboard from './components/InsightsDashboard';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -169,6 +174,26 @@ function App() {
             
             {activeTab === 'financial-summary' && (
               <FinancialSummary />
+            )}
+            
+            {activeTab === 'forecast' && (
+              <ForecastDashboard />
+            )}
+            
+            {activeTab === 'networth' && (
+              <NetWorthDashboard />
+            )}
+            
+            {activeTab === 'health-score' && (
+              <FinancialHealthScore />
+            )}
+            
+            {activeTab === 'goals' && (
+              <GoalsPlanner />
+            )}
+            
+            {activeTab === 'insights' && (
+              <InsightsDashboard />
             )}
             
             {activeTab === 'budget' && <BudgetManager />}

@@ -1,15 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, PlusCircle, Receipt, Wallet, LogOut, Smartphone, TrendingUp, DollarSign, PieChart } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, Receipt, Wallet, LogOut, Smartphone, TrendingUp, DollarSign, PieChart, TrendingDown, Target, Shield, AlertCircle } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'financial-summary', label: 'Financial Summary', icon: PieChart },
+    { id: 'networth', label: 'Net Worth', icon: DollarSign },
+    { id: 'forecast', label: 'Forecast', icon: TrendingDown },
+    { id: 'health-score', label: 'Health Score', icon: Shield },
+    { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'insights', label: 'Insights', icon: AlertCircle },
     { id: 'add', label: 'Add Expense', icon: PlusCircle },
     { id: 'expenses', label: 'Expenses', icon: Receipt },
     { id: 'add-income', label: 'Add Income', icon: TrendingUp },
-    { id: 'income-list', label: 'Income History', icon: DollarSign },
+    { id: 'income-list', label: 'Income History', icon: TrendingUp },
     { id: 'sms', label: 'SMS Import', icon: Smartphone },
     { id: 'budget', label: 'Budget', icon: Wallet },
   ];

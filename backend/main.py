@@ -533,3 +533,351 @@ def test_sms_parse(sms: SMSWebhook):
         "message": "SMS parsed successfully",
         "parsed_data": parsed
     }
+
+
+# ==================== NEW ADVANCED FEATURES ====================
+
+from forecasting_service import ForecastingService
+from financial_health_service import FinancialHealthService
+from anomaly_detection_service import AnomalyDetectionService
+from wealth_management_service import AssetService, LiabilityService, NetWorthService, GoalService
+from models import Asset, Liability, FinancialGoal
+
+# Pydantic models for new features
+class AssetCreate(BaseModel):
+    name: str
+    value: float
+    category: str
+    date: date
+    note: Optional[str] = None
+
+class AssetUpdate(BaseModel):
+    name: str
+    value: float
+    category: str
+    date: date
+    note: Optional[str] = None
+
+class LiabilityCreate(BaseModel):
+    name: str
+    amount: float
+    category: str
+    interest_rate: float = 0.0
+    date: date
+    note: Optional[str] = None
+
+class LiabilityUpdate(BaseModel):
+    name: str
+    amount: float
+    category: str
+    interest_rate: float
+    date: date
+    note: Optional[str] = None
+
+class GoalCreate(BaseModel):
+    name: str
+    target_amount: float
+    deadline: date
+    category: str
+
+class GoalUpdate(BaseModel):
+    name: str
+    target_amount: float
+    current_amount: float
+    deadline: date
+    category: str
+    status: str
+
+
+# ==================== FORECASTING ENDPOINTS ====================
+
+@app.get("/forecast/next-month")
+def forecast_next_month(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Forecast total spending for next month"""
+    return ForecastingService.forecast_next_month(db, current_user.id)
+
+@app.get("/forecast/by-category")
+def forecast_by_category(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Forecast spending by category for next month"""
+    return ForecastingService.forecast_by_category(db, current_user.id)
+
+@app.get("/forecast/trend")
+def get_spending_trend(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get spending trend analysis"""
+    return ForecastingService.get_spending_trend(db, current_user.id)
+
+
+# ==================== FINANCIAL HEALTH ENDPOINTS ====================
+
+@app.get("/health/score")
+def get_financial_health_score(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive financial health score (0-100)"""
+    return FinancialHealthService.calculate_health_score(db, current_user.id)
+
+
+# ==================== ANOMALY DETECTION ENDPOINTS ====================
+
+@app.get("/anomalies/all")
+def get_all_anomalies(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all detected anomalies"""
+    return AnomalyDetectionService.get_all_anomalies(db, current_user.id)
+
+@app.get("/anomalies/transactions")
+def get_transaction_anomalies(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get unusual transactions"""
+    return AnomalyDetectionService.detect_amount_anomalies(db, current_user.id)
+
+@app.get("/insights/behavioral")
+def get_behavioral_insights(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get behavioral spending insights"""
+    return {"insights": AnomalyDetectionService.get_behavioral_insights(db, current_user.id)}
+
+
+# ==================== NET WORTH DASHBOARD ENDPOINTS ====================
+
+@app.get("/networth/dashboard")
+def get_networth_dashboard(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive net worth dashboard"""
+    return NetWorthService.get_net_worth_dashboard(db, current_user.id)
+
+
+# ==================== ASSET ENDPOINTS ====================
+
+@app.get("/assets")
+def get_assets(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all assets"""
+    assets = AssetService.get_all_assets(db, current_user.id)
+    return [
+        {
+            "id": a.id,
+            "name": a.name,
+            "value": a.value,
+            "category": a.category,
+            "date": a.date.isoformat(),
+            "note": a.note
+        }
+        for a in assets
+    ]
+
+@app.post("/assets")
+def create_asset(
+    asset: AssetCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create new asset"""
+    new_asset = AssetService.create_asset(
+        db, asset.name, asset.value, asset.category, asset.date, asset.note, current_user.id
+    )
+    return {
+        "id": new_asset.id,
+        "name": new_asset.name,
+        "value": new_asset.value,
+        "category": new_asset.category,
+        "date": new_asset.date.isoformat(),
+        "note": new_asset.note
+    }
+
+@app.put("/assets/{asset_id}")
+def update_asset(
+    asset_id: int,
+    asset: AssetUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update asset"""
+    updated = AssetService.update_asset(
+        db, asset_id, asset.name, asset.value, asset.category, asset.date, asset.note, current_user.id
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return {
+        "id": updated.id,
+        "name": updated.name,
+        "value": updated.value,
+        "category": updated.category,
+        "date": updated.date.isoformat(),
+        "note": updated.note
+    }
+
+@app.delete("/assets/{asset_id}")
+def delete_asset(
+    asset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete asset"""
+    success = AssetService.delete_asset(db, asset_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return {"message": "Asset deleted"}
+
+
+# ==================== LIABILITY ENDPOINTS ====================
+
+@app.get("/liabilities")
+def get_liabilities(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all liabilities"""
+    liabilities = LiabilityService.get_all_liabilities(db, current_user.id)
+    return [
+        {
+            "id": l.id,
+            "name": l.name,
+            "amount": l.amount,
+            "category": l.category,
+            "interest_rate": l.interest_rate,
+            "date": l.date.isoformat(),
+            "note": l.note
+        }
+        for l in liabilities
+    ]
+
+@app.post("/liabilities")
+def create_liability(
+    liability: LiabilityCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create new liability"""
+    new_liability = LiabilityService.create_liability(
+        db, liability.name, liability.amount, liability.category,
+        liability.interest_rate, liability.date, liability.note, current_user.id
+    )
+    return {
+        "id": new_liability.id,
+        "name": new_liability.name,
+        "amount": new_liability.amount,
+        "category": new_liability.category,
+        "interest_rate": new_liability.interest_rate,
+        "date": new_liability.date.isoformat(),
+        "note": new_liability.note
+    }
+
+@app.put("/liabilities/{liability_id}")
+def update_liability(
+    liability_id: int,
+    liability: LiabilityUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update liability"""
+    updated = LiabilityService.update_liability(
+        db, liability_id, liability.name, liability.amount, liability.category,
+        liability.interest_rate, liability.date, liability.note, current_user.id
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Liability not found")
+    return {
+        "id": updated.id,
+        "name": updated.name,
+        "amount": updated.amount,
+        "category": updated.category,
+        "interest_rate": updated.interest_rate,
+        "date": updated.date.isoformat(),
+        "note": updated.note
+    }
+
+@app.delete("/liabilities/{liability_id}")
+def delete_liability(
+    liability_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete liability"""
+    success = LiabilityService.delete_liability(db, liability_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Liability not found")
+    return {"message": "Liability deleted"}
+
+
+# ==================== FINANCIAL GOAL ENDPOINTS ====================
+
+@app.get("/goals")
+def get_goals(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all financial goals with progress"""
+    return {"goals": GoalService.get_all_goals_with_progress(db, current_user.id)}
+
+@app.post("/goals")
+def create_goal(
+    goal: GoalCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create new financial goal"""
+    new_goal = GoalService.create_goal(
+        db, goal.name, goal.target_amount, goal.deadline, goal.category, current_user.id
+    )
+    return GoalService.get_goal_progress(db, new_goal.id, current_user.id)
+
+@app.put("/goals/{goal_id}")
+def update_goal(
+    goal_id: int,
+    goal: GoalUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update financial goal"""
+    updated = GoalService.update_goal(
+        db, goal_id, goal.name, goal.target_amount, goal.current_amount,
+        goal.deadline, goal.category, goal.status, current_user.id
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return GoalService.get_goal_progress(db, goal_id, current_user.id)
+
+@app.delete("/goals/{goal_id}")
+def delete_goal(
+    goal_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete financial goal"""
+    success = GoalService.delete_goal(db, goal_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return {"message": "Goal deleted"}
+
+@app.get("/goals/{goal_id}/progress")
+def get_goal_progress(
+    goal_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get detailed progress for a specific goal"""
+    progress = GoalService.get_goal_progress(db, goal_id, current_user.id)
+    if not progress:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return progress
