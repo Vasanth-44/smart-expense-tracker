@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from datetime import date, timedelta, datetime
 from typing import Optional
+import os
 
 from database import engine, get_db, Base
 from models import User, Expense, Budget, Income
@@ -28,10 +29,13 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Smart Expense Tracker API")
 
-# CORS
+# CORS - load allowed origins from environment for production
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
