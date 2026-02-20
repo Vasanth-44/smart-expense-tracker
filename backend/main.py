@@ -29,14 +29,11 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Smart Expense Tracker API")
 
-# CORS - load allowed origins from environment for production
-_raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000")
-ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
-
+# CORS - allow all origins so any Vercel preview/prod URL works
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
