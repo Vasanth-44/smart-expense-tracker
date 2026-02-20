@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../services/api';
 
 const SubscriptionContext = createContext();
 
@@ -23,7 +24,7 @@ export const SubscriptionProvider = ({ children }) => {
         return;
       }
 
-      const response = await axios.get('http://localhost:8000/subscription/status', {
+      const response = await axios.get(`${API_BASE_URL}/subscription/status`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

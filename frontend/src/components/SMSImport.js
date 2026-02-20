@@ -6,8 +6,7 @@ import toast from 'react-hot-toast';
 import GlassCard from './ui/GlassCard';
 import Button from './ui/Button';
 import Input from './ui/Input';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { API_BASE_URL } from '../services/api';
 
 export default function SMSImport({ onImportSuccess }) {
   const [sender, setSender] = useState('');

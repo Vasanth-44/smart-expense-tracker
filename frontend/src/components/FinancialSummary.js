@@ -5,8 +5,7 @@ import axios from 'axios';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import GlassCard from './ui/GlassCard';
 import AnimatedCounter from './ui/AnimatedCounter';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { API_BASE_URL } from '../services/api';
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
 
 export default function FinancialSummary() {

@@ -2,11 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown, AlertCircle, Sparkles, DollarSign, AlertTriangle, Activity } from 'lucide-react';
-import { analyticsAPI } from '../services/api';
+import { analyticsAPI, API_BASE_URL } from '../services/api';
 import axios from 'axios';
 import GlassCard from './ui/GlassCard';
-
-const API_BASE_URL = 'http://localhost:8000';
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#14b8a6'];
 
 export default function Dashboard() {
@@ -39,6 +37,10 @@ export default function Dashboard() {
       setAnomalies(anomaliesRes.data);
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      // Show error message if API is not available
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        console.error('Backend API is not reachable. Please check:', API_BASE_URL);
+      }
     } finally {
       setLoading(false);
     }

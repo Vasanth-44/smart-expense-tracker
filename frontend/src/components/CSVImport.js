@@ -6,8 +6,7 @@ import Modal from './ui/Modal';
 import Button from './ui/Button';
 import GlassCard from './ui/GlassCard';
 import toast from 'react-hot-toast';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { API_BASE_URL } from '../services/api';
 
 export default function CSVImport({ isOpen, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
