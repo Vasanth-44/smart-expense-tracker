@@ -6,7 +6,7 @@ import { analyticsAPI } from '../services/api';
 import axios from 'axios';
 import GlassCard from './ui/GlassCard';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#14b8a6'];
 
 export default function Dashboard() {
@@ -23,20 +23,33 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const [summaryRes, insightsRes, predictionRes, anomaliesRes] = await Promise.all([
+
+      // Load core data (required)
+      const [summaryRes, insightsRes] = await Promise.all([
         analyticsAPI.getSummary(),
         analyticsAPI.getInsights(),
-        axios.get(`${API_BASE_URL}/ml/predict-next-month`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${API_BASE_URL}/ml/anomalies`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
       ]);
       setSummary(summaryRes.data);
-      setInsights(insightsRes.data.insights);
-      setPrediction(predictionRes.data);
-      setAnomalies(anomaliesRes.data);
+      setInsights(insightsRes.data.insights || []);
+
+      // Load ML data (optional – may fail if not enough history)
+      try {
+        const predictionRes = await axios.get(`${API_BASE_URL}/ml/predict-next-month`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setPrediction(predictionRes.data);
+      } catch (e) {
+        console.warn('ML prediction unavailable:', e.message);
+      }
+
+      try {
+        const anomaliesRes = await axios.get(`${API_BASE_URL}/ml/anomalies`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setAnomalies(anomaliesRes.data);
+      } catch (e) {
+        console.warn('Anomaly detection unavailable:', e.message);
+      }
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {

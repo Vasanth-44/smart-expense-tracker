@@ -148,16 +148,17 @@ export default function ExpenseForm({ onSuccess, editExpense, onCancel }) {
               Category
             </label>
             <div className="relative">
-              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" size={18} />
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-3 pl-10 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 appearance-none cursor-pointer"
+                style={{ backgroundColor: '#1e293b', color: 'white' }}
+                className="w-full px-4 py-3 pl-10 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 appearance-none cursor-pointer"
                 required
               >
-                <option value="" className="bg-slate-900">Select category</option>
+                <option value="" style={{ backgroundColor: '#1e293b' }}>Select category</option>
                 {categories.map((cat) => (
-                  <option key={cat} value={cat} className="bg-slate-900">{cat}</option>
+                  <option key={cat} value={cat} style={{ backgroundColor: '#1e293b' }}>{cat}</option>
                 ))}
               </select>
             </div>

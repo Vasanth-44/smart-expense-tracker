@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, CreditCard, PiggyBank, Target } from 'lucide-react';
 import axios from 'axios';
-import CountUp from 'react-countup';
+import toast from 'react-hot-toast';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const NetWorthDashboard = () => {
   const [netWorthData, setNetWorthData] = useState(null);
@@ -22,18 +24,42 @@ const NetWorthDashboard = () => {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [networth, assetsRes, liabilitiesRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/networth/dashboard', { headers }),
-        axios.get('http://127.0.0.1:8000/assets', { headers }),
-        axios.get('http://127.0.0.1:8000/liabilities', { headers })
+      // Load assets & liabilities (always available)
+      const [assetsRes, liabilitiesRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/assets`, { headers }),
+        axios.get(`${API_BASE_URL}/liabilities`, { headers })
       ]);
-
-      setNetWorthData(networth.data);
       setAssets(assetsRes.data);
       setLiabilities(liabilitiesRes.data);
-      setLoading(false);
+
+      // Net worth dashboard is optional (may fail with no data)
+      try {
+        const networth = await axios.get(`${API_BASE_URL}/networth/dashboard`, { headers });
+        setNetWorthData(networth.data);
+      } catch (e) {
+        console.warn('Net worth dashboard unavailable, using defaults');
+        // Build a minimal summary from assets/liabilities
+        const totalAssets = assetsRes.data.reduce((s, a) => s + a.value, 0);
+        const totalLiabilities = liabilitiesRes.data.reduce((s, l) => s + l.amount, 0);
+        setNetWorthData({
+          net_worth: totalAssets - totalLiabilities,
+          total_assets: totalAssets,
+          total_liabilities: totalLiabilities,
+          savings_rate: 0,
+          monthly_growth: 0,
+          growth_direction: 'up',
+          monthly_income: 0,
+          monthly_expenses: 0,
+          monthly_net: 0,
+          month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
+          assets_breakdown: {},
+          liabilities_breakdown: {}
+        });
+      }
     } catch (error) {
       console.error('Error fetching net worth data:', error);
+      toast.error('Failed to load net worth data');
+    } finally {
       setLoading(false);
     }
   };
@@ -41,32 +67,36 @@ const NetWorthDashboard = () => {
   const handleAddAsset = async (assetData) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://127.0.0.1:8000/assets', assetData, {
+      await axios.post(`${API_BASE_URL}/assets`, assetData, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      toast.success('Asset added successfully!');
       fetchData();
       setShowAssetForm(false);
     } catch (error) {
       console.error('Error adding asset:', error);
+      toast.error(error.response?.data?.detail || 'Failed to add asset');
     }
   };
 
   const handleAddLiability = async (liabilityData) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://127.0.0.1:8000/liabilities', liabilityData, {
+      await axios.post(`${API_BASE_URL}/liabilities`, liabilityData, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      toast.success('Liability added successfully!');
       fetchData();
       setShowLiabilityForm(false);
     } catch (error) {
       console.error('Error adding liability:', error);
+      toast.error(error.response?.data?.detail || 'Failed to add liability');
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-24">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
       </div>
     );
@@ -115,7 +145,7 @@ const NetWorthDashboard = () => {
             </div>
             <p className="text-white/80 text-sm mb-1">Net Worth</p>
             <p className="text-4xl font-bold text-white">
-              ₹<CountUp end={netWorthData?.net_worth || 0} duration={2} separator="," />
+              ₹{(netWorthData?.net_worth || 0).toLocaleString('en-IN')}
             </p>
             <p className="text-sm text-white/70 mt-2">
               {netWorthData?.monthly_growth > 0 ? '+' : ''}{netWorthData?.monthly_growth}% this month
@@ -130,7 +160,7 @@ const NetWorthDashboard = () => {
             <PiggyBank className="w-8 h-8 text-green-400 mb-2" />
             <p className="text-gray-300 text-sm mb-1">Total Assets</p>
             <p className="text-3xl font-bold text-white">
-              ₹<CountUp end={netWorthData?.total_assets || 0} duration={2} separator="," />
+              ₹{(netWorthData?.total_assets || 0).toLocaleString('en-IN')}
             </p>
           </motion.div>
 
@@ -142,7 +172,7 @@ const NetWorthDashboard = () => {
             <CreditCard className="w-8 h-8 text-red-400 mb-2" />
             <p className="text-gray-300 text-sm mb-1">Total Liabilities</p>
             <p className="text-3xl font-bold text-white">
-              ₹<CountUp end={netWorthData?.total_liabilities || 0} duration={2} separator="," />
+              ₹{(netWorthData?.total_liabilities || 0).toLocaleString('en-IN')}
             </p>
           </motion.div>
 
@@ -154,7 +184,7 @@ const NetWorthDashboard = () => {
             <Target className="w-8 h-8 text-blue-400 mb-2" />
             <p className="text-gray-300 text-sm mb-1">Savings Rate</p>
             <p className="text-3xl font-bold text-white">
-              <CountUp end={netWorthData?.savings_rate || 0} duration={2} decimals={1} />%
+              {(netWorthData?.savings_rate || 0).toFixed(1)}%
             </p>
           </motion.div>
         </div>
